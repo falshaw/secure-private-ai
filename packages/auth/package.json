@@ -1,0 +1,14 @@
+{
+  "name": "@falshaw/auth",
+  "version": "0.1.0",
+  "description": "Shared JWT (HS256, jose) and bcrypt auth primitives for Node/Next.js apps",
+  "license": "MIT",
+  "author": "Nick Falshaw",
+  "type": "module",
+  "main": "auth-core.ts",
+  "types": "auth-core.ts",
+  "peerDependencies": {
+    "bcryptjs": "^3.0.0",
+    "jose": ">=5.0.0"
+  }
+}

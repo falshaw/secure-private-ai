@@ -1,0 +1,10 @@
+# Build context is bridge/ — keep secrets, local state and junk out of the image.
+.env
+.env.*
+*.log
+.git
+node_modules
+.bridge-logs
+.bridge-state.json
+.embed-cache
+bridge-allowlist.json

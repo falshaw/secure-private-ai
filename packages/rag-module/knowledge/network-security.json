@@ -1,0 +1,44 @@
+[
+  {
+    "id": "fw-default-deny",
+    "source": "Synthetic sample",
+    "category": "firewall",
+    "content": "Default-deny firewall policy: traffic is blocked unless an explicit rule allows it. Each allow rule should name a specific source, destination, service and business owner. A final explicit deny rule with logging makes dropped traffic visible during troubleshooting and audits."
+  },
+  {
+    "id": "fw-rule-review",
+    "source": "Synthetic sample",
+    "category": "firewall",
+    "content": "Firewall rule review: remove rules with zero hits over a defined period, rules that are shadowed by earlier broader rules, and any-any rules. Every remaining rule should carry a ticket or change reference and an expiry or review date."
+  },
+  {
+    "id": "fw-change-process",
+    "source": "Synthetic sample",
+    "category": "change-management",
+    "content": "Firewall change process: request, risk assessment, peer review, approval, scheduled implementation in a maintenance window, verification and documentation. Emergency changes follow the same steps afterwards, within an agreed time limit."
+  },
+  {
+    "id": "net-segmentation",
+    "source": "Synthetic sample",
+    "category": "network",
+    "content": "Network segmentation separates systems by trust level, for example user LAN, server zone, DMZ and management network. Traffic between zones passes through a firewall, and the management network is reachable only from dedicated jump hosts."
+  },
+  {
+    "id": "net-private-ranges",
+    "source": "RFC 1918 / RFC 5737",
+    "category": "network",
+    "content": "RFC 1918 reserves 10.0.0.0/8, 172.16.0.0/12 and 192.168.0.0/16 for private networks. RFC 5737 reserves 192.0.2.0/24, 198.51.100.0/24 and 203.0.113.0/24 for documentation and examples; these must never appear in production configurations."
+  },
+  {
+    "id": "vpn-hardening",
+    "source": "Synthetic sample",
+    "category": "vpn",
+    "content": "Site-to-site VPN hardening: use IKEv2 with AES-GCM and a Diffie-Hellman group of at least 19 (ECP-256), certificate-based authentication instead of pre-shared keys where possible, and perfect forward secrecy for child security associations."
+  },
+  {
+    "id": "logging-retention",
+    "source": "Synthetic sample",
+    "category": "monitoring",
+    "content": "Security logging: forward firewall, VPN and authentication logs to a central log platform with synchronised time (NTP). Define a retention period, protect logs against modification, and alert on configuration changes and repeated authentication failures."
+  }
+]

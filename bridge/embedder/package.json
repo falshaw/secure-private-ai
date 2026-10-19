@@ -1,0 +1,20 @@
+{
+  "name": "llm-bridge-embedder",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local ONNX embedding backend for the LLM bridge. transformers.js runs the model in-process on CPU. Installed into /opt/embedder in the bridge image because the bridge code ships without node_modules.",
+  "license": "MIT",
+  "author": "Nick Falshaw",
+  "allowScripts": {
+    "onnxruntime-node": true,
+    "sharp": true,
+    "protobufjs": true
+  },
+  "dependencies": {
+    "@huggingface/transformers": "4.2.0"
+  },
+  "overrides": {
+    "sharp": "^0.35.4",
+    "adm-zip": "^0.6.0"
+  }
+}

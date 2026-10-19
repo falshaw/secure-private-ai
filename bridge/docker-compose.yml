@@ -1,0 +1,91 @@
+# LLM bridge — containerized gateway that app containers reach via
+# http://host.docker.internal:7777 (published on 127.0.0.1 only).
+#
+#   Start:  docker compose up -d      (run from bridge/)
+#   Stop:   docker compose down
+#   Logs:   docker compose logs -f
+#
+# Do not also run `node claude-bridge.mjs` on the host (port clash).
+#
+# Auth to the model: a Claude Code credentials file (CLAUDE_CREDENTIALS_FILE)
+# is mounted read-only and copied into the container on start (see Dockerfile
+# ENTRYPOINT). No API key is passed to any app container.
+services:
+  bridge:
+    build: .
+    image: llm-bridge:latest
+    container_name: llm-bridge
+    environment:
+      - CLAUDE_BRIDGE_HOST=0.0.0.0          # bind inside container; only the published 127.0.0.1 port is exposed
+      - CLAUDE_BRIDGE_PORT=7777
+      - CLAUDE_BIN=claude
+      # Shared-secret auth: clients must send X-Bridge-Token (or Authorization:
+      # Bearer on /v1/*). Compose refuses to start without it, because the bridge
+      # itself treats an empty token as "auth disabled".
+      - CLAUDE_BRIDGE_TOKEN=${CLAUDE_BRIDGE_TOKEN:?set CLAUDE_BRIDGE_TOKEN in bridge/.env — empty means auth disabled}
+      # Per-app model + rate-limit policy (mounted below).
+      - CLAUDE_BRIDGE_ALLOWLIST_FILE=/config/bridge-allowlist.json
+      # Optional Qdrant for /rag/* (any reachable Qdrant; key sent as `api-key`).
+      - QDRANT_URL=${QDRANT_URL:-http://host.docker.internal:6333}
+      - QDRANT_API_KEY=${QDRANT_API_KEY:-}
+      # Optional Ollama: embeddings (EMBED_PROVIDER=ollama) and the quota
+      # fallback (fallbackOnQuotaExhausted). Leave unset if nothing serves it,
+      # otherwise every fallback waits for a connection timeout.
+      - OLLAMA_URL=${OLLAMA_URL:-}
+      - EMBED_PROVIDER=${EMBED_PROVIDER:-local}     # local | ollama | none
+      - EMBED_MODEL_LOCAL=nomic-ai/nomic-embed-text-v1.5   # same family as Ollama's `nomic-embed-text` (v1.5), so vectors stay comparable
+      - EMBED_PKG_DIR=/opt/embedder                 # where the Dockerfile installs @huggingface/transformers
+      - EMBED_CACHE_DIR=/state/.embed-cache         # ~500 MB of weights, on the writable volume so it survives a recreate
+      - EMBED_MODEL=nomic-embed-text                # only consulted when EMBED_PROVIDER=ollama
+      - EMBED_DIM=768
+      # Persistent bridge state (collection embedding metadata) and the
+      # append-only request log live on the writable /state volume.
+      - BRIDGE_STATE_FILE=/state/.bridge-state.json
+      - BRIDGE_REQUEST_LOG_DIR=/state/.bridge-logs
+      # Optional (add here if needed): RAG_ENV, RAG_UUID_NAMESPACE,
+      # CACHE_MAX_ENTRIES, CACHE_TTL_MS, RETRY_TRANSIENT, SPAWN_TIMEOUT_MS,
+      # BRIDGE_REQUEST_LOG_CONTENT
+    ports:
+      - "127.0.0.1:7777:7777"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # reach host-published Qdrant/Ollama
+    volumes:
+      - bridge-state:/state
+      # Allowlist, read-only. Copy bridge-allowlist.example.json to
+      # bridge-allowlist.json and point BRIDGE_ALLOWLIST_FILE at it.
+      - ${BRIDGE_ALLOWLIST_FILE:-./bridge-allowlist.example.json}:/config/bridge-allowlist.json:ro
+      # Claude Code credentials — read-only seed, copied to writable HOME on start.
+      # Typically ~/.claude/.credentials.json after `claude login` on the host.
+      - ${CLAUDE_CREDENTIALS_FILE:?set CLAUDE_CREDENTIALS_FILE in bridge/.env}:/seed/.credentials.json:ro
+    working_dir: /app
+    restart: unless-stopped
+    stop_grace_period: 5s
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    # read_only intentionally omitted: the bundled `claude` CLI needs a writable
+    # $HOME (credential copy + OAuth token refresh + CLI state). All other
+    # hardening (cap_drop, no-new-privileges, limits, log rotation) applies.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          # The in-process ONNX embedder keeps the model resident (~600 MB fp32);
+          # below ~2 GB a warm embed degrades into GC thrash and `claude -p`
+          # spawns have no headroom.
+          memory: 3g
+          cpus: "4.0"
+          pids: 200
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:7777/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      start_period: 25s
+      retries: 3
+
+volumes:
+  bridge-state:

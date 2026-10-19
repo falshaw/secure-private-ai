@@ -1,0 +1,23 @@
+{
+  "name": "@falshaw/rag-module",
+  "version": "0.1.0",
+  "description": "Embedded RAG module — LanceDB vector store + Ollama embeddings",
+  "license": "MIT",
+  "author": "Nick Falshaw",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "tsx src/test.ts",
+    "ingest": "tsx src/ingest.ts"
+  },
+  "dependencies": {
+    "@lancedb/lancedb": "^0.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.6.0"
+  }
+}

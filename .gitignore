@@ -1,0 +1,23 @@
+node_modules/
+.next/
+dist/
+out/
+build/
+coverage/
+*.tsbuildinfo
+*.log
+.env
+.env.*
+!.env.example
+__pycache__/
+.venv/
+.DS_Store
+Thumbs.db
+
+# Local runtime data (may contain prompts and private content)
+data/
+test-data/
+.bridge-logs/
+.bridge-state.json
+.embed-cache/
+bridge/bridge-allowlist.json

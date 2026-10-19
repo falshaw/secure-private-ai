@@ -1,0 +1,176 @@
+[
+  {
+    "id": "gdpr-art5",
+    "source": "GDPR Art. 5",
+    "category": "gdpr",
+    "content": "DSGVO Artikel 5 – Grundsätze der Verarbeitung: Personenbezogene Daten müssen auf rechtmäßige Weise, nach Treu und Glauben und in einer für die betroffene Person nachvollziehbaren Weise verarbeitet werden (Rechtmäßigkeit, Verarbeitung nach Treu und Glauben, Transparenz). Sie müssen für festgelegte, eindeutige und legitime Zwecke erhoben werden (Zweckbindung). Die Daten müssen dem Zweck angemessen, erheblich und auf das notwendige Maß beschränkt sein (Datenminimierung). Sie müssen sachlich richtig und auf dem neuesten Stand sein (Richtigkeit). Sie dürfen nur so lange gespeichert werden, wie es für den Zweck erforderlich ist (Speicherbegrenzung). Sie müssen durch geeignete technische und organisatorische Maßnahmen geschützt werden (Integrität und Vertraulichkeit)."
+  },
+  {
+    "id": "gdpr-art6",
+    "source": "GDPR Art. 6",
+    "category": "gdpr",
+    "content": "DSGVO Artikel 6 – Rechtmäßigkeit der Verarbeitung: Die Verarbeitung ist nur rechtmäßig, wenn mindestens eine der folgenden Bedingungen erfüllt ist: (a) Einwilligung der betroffenen Person, (b) Erfüllung eines Vertrags, (c) Erfüllung einer rechtlichen Verpflichtung, (d) Schutz lebenswichtiger Interessen, (e) Wahrnehmung einer Aufgabe im öffentlichen Interesse, (f) berechtigtes Interesse des Verantwortlichen. Bei berechtigtem Interesse muss eine Interessenabwägung durchgeführt werden."
+  },
+  {
+    "id": "gdpr-art7",
+    "source": "GDPR Art. 7",
+    "category": "gdpr",
+    "content": "DSGVO Artikel 7 – Bedingungen für die Einwilligung: Der Verantwortliche muss nachweisen können, dass die betroffene Person eingewilligt hat. Die Einwilligung muss freiwillig, informiert, unmissverständlich und für einen bestimmten Zweck erteilt werden. Sie kann jederzeit widerrufen werden, und der Widerruf muss so einfach sein wie die Erteilung. Bei Minderjährigen unter 16 Jahren ist die Einwilligung der Eltern erforderlich."
+  },
+  {
+    "id": "gdpr-art13-14",
+    "source": "GDPR Art. 13-14",
+    "category": "gdpr",
+    "content": "DSGVO Artikel 13-14 – Informationspflichten: Bei der Erhebung personenbezogener Daten müssen folgende Informationen bereitgestellt werden: Name und Kontaktdaten des Verantwortlichen, Kontaktdaten des Datenschutzbeauftragten, Zwecke und Rechtsgrundlage der Verarbeitung, berechtigte Interessen (falls Art. 6(1)(f)), Empfänger der Daten, Absicht der Drittlandübermittlung, Speicherdauer, Rechte der Betroffenen (Auskunft, Berichtigung, Löschung, Einschränkung, Widerspruch, Datenübertragbarkeit), Beschwerderecht bei Aufsichtsbehörde."
+  },
+  {
+    "id": "gdpr-art15",
+    "source": "GDPR Art. 15",
+    "category": "gdpr",
+    "content": "DSGVO Artikel 15 – Auskunftsrecht: Die betroffene Person hat das Recht, eine Bestätigung darüber zu verlangen, ob sie betreffende personenbezogene Daten verarbeitet werden. Falls ja, hat sie Anspruch auf Auskunft über: die Verarbeitungszwecke, Kategorien der Daten, Empfänger, geplante Speicherdauer, Rechte auf Berichtigung/Löschung/Einschränkung, Beschwerderecht, Herkunft der Daten, und ob automatisierte Entscheidungsfindung stattfindet. Die Auskunft muss innerhalb eines Monats erteilt werden."
+  },
+  {
+    "id": "gdpr-art17",
+    "source": "GDPR Art. 17",
+    "category": "gdpr",
+    "content": "DSGVO Artikel 17 – Recht auf Löschung (Recht auf Vergessenwerden): Die betroffene Person hat das Recht auf unverzügliche Löschung, wenn: die Daten für den Zweck nicht mehr notwendig sind, die Einwilligung widerrufen wurde, die Person Widerspruch einlegt, die Daten unrechtmäßig verarbeitet wurden, oder eine rechtliche Verpflichtung zur Löschung besteht. Ausnahmen: Meinungsfreiheit, rechtliche Verpflichtungen, öffentliches Interesse im Bereich Gesundheit, Archivzwecke, Rechtsansprüche."
+  },
+  {
+    "id": "gdpr-art20",
+    "source": "GDPR Art. 20",
+    "category": "gdpr",
+    "content": "DSGVO Artikel 20 – Recht auf Datenübertragbarkeit: Die betroffene Person hat das Recht, die sie betreffenden Daten in einem strukturierten, gängigen und maschinenlesbaren Format zu erhalten. Sie kann verlangen, dass die Daten direkt an einen anderen Verantwortlichen übermittelt werden. Voraussetzungen: Die Verarbeitung beruht auf Einwilligung oder Vertrag und erfolgt mithilfe automatisierter Verfahren."
+  },
+  {
+    "id": "gdpr-art25",
+    "source": "GDPR Art. 25",
+    "category": "gdpr",
+    "content": "DSGVO Artikel 25 – Datenschutz durch Technikgestaltung und datenschutzfreundliche Voreinstellungen (Privacy by Design/Default): Der Verantwortliche muss sowohl zum Zeitpunkt der Festlegung der Verarbeitungsmittel als auch zum Zeitpunkt der Verarbeitung geeignete technische und organisatorische Maßnahmen treffen. Standardmäßig dürfen nur die für den jeweiligen Zweck erforderlichen Daten verarbeitet werden (Datenschutz durch datenschutzfreundliche Voreinstellungen). Maßnahmen: Pseudonymisierung, Datenminimierung, Zugriffskontrollen."
+  },
+  {
+    "id": "gdpr-art28",
+    "source": "GDPR Art. 28",
+    "category": "gdpr",
+    "content": "DSGVO Artikel 28 – Auftragsverarbeiter: Der Verantwortliche darf nur Auftragsverarbeiter beauftragen, die hinreichende Garantien bieten. Ein schriftlicher Vertrag (Auftragsverarbeitungsvertrag, AVV) ist Pflicht. Der AVV muss regeln: Gegenstand und Dauer, Art und Zweck, Arten personenbezogener Daten, Kategorien betroffener Personen, Pflichten und Rechte des Verantwortlichen. Der Auftragsverarbeiter darf nur auf dokumentierte Weisung handeln. Unterauftragnehmer bedürfen der Genehmigung."
+  },
+  {
+    "id": "gdpr-art30",
+    "source": "GDPR Art. 30",
+    "category": "gdpr",
+    "content": "DSGVO Artikel 30 – Verzeichnis von Verarbeitungstätigkeiten (VVT): Jeder Verantwortliche mit mehr als 250 Mitarbeitern muss ein VVT führen. Auch kleinere Unternehmen, wenn die Verarbeitung ein Risiko birgt, nicht nur gelegentlich erfolgt, oder besondere Datenkategorien betrifft. Das VVT muss enthalten: Name/Kontaktdaten des Verantwortlichen, Zwecke der Verarbeitung, Kategorien betroffener Personen und Daten, Empfänger, Drittlandübermittlungen, Speicherfristen, Beschreibung der technischen und organisatorischen Maßnahmen."
+  },
+  {
+    "id": "gdpr-art32",
+    "source": "GDPR Art. 32",
+    "category": "gdpr",
+    "content": "DSGVO Artikel 32 – Sicherheit der Verarbeitung (Technische und Organisatorische Maßnahmen, TOM): Der Verantwortliche muss unter Berücksichtigung des Stands der Technik, der Implementierungskosten und der Art der Verarbeitung geeignete TOM umsetzen. Dazu gehören: (a) Pseudonymisierung und Verschlüsselung, (b) Vertraulichkeit, Integrität, Verfügbarkeit und Belastbarkeit der Systeme, (c) Wiederherstellbarkeit nach Zwischenfällen, (d) regelmäßige Überprüfung und Bewertung der Maßnahmen. Konkrete Maßnahmen: Zutrittskontrolle, Zugangskontrolle, Zugriffskontrolle, Weitergabekontrolle, Eingabekontrolle, Auftragskontrolle, Verfügbarkeitskontrolle, Trennungsgebot."
+  },
+  {
+    "id": "gdpr-art33",
+    "source": "GDPR Art. 33",
+    "category": "gdpr",
+    "content": "DSGVO Artikel 33 – Meldung von Datenschutzverletzungen an die Aufsichtsbehörde: Eine Datenschutzverletzung muss innerhalb von 72 Stunden nach Bekanntwerden der Aufsichtsbehörde gemeldet werden. Die Meldung muss enthalten: Art der Verletzung, Kategorien und ungefähre Anzahl betroffener Personen, Name des Datenschutzbeauftragten, wahrscheinliche Folgen, ergriffene Maßnahmen. Bei niedrigem Risiko für die Rechte der Betroffenen ist keine Meldung erforderlich."
+  },
+  {
+    "id": "gdpr-art35",
+    "source": "GDPR Art. 35",
+    "category": "gdpr",
+    "content": "DSGVO Artikel 35 – Datenschutz-Folgenabschätzung (DSFA): Eine DSFA ist erforderlich bei hohem Risiko für Rechte und Freiheiten, insbesondere bei: systematischer Bewertung persönlicher Aspekte (Profiling), umfangreicher Verarbeitung besonderer Datenkategorien, systematischer Überwachung öffentlich zugänglicher Bereiche. Die DSFA muss enthalten: Beschreibung der Verarbeitungsvorgänge, Bewertung der Notwendigkeit und Verhältnismäßigkeit, Bewertung der Risiken, vorgesehene Abhilfemaßnahmen. Bei verbleibendem hohem Risiko: Konsultation der Aufsichtsbehörde (Art. 36)."
+  },
+  {
+    "id": "gdpr-art37",
+    "source": "GDPR Art. 37",
+    "category": "gdpr",
+    "content": "DSGVO Artikel 37 – Benennung eines Datenschutzbeauftragten (DSB): Ein DSB ist Pflicht wenn: (a) die Verarbeitung von einer Behörde durchgeführt wird, (b) die Kerntätigkeit eine umfangreiche regelmäßige und systematische Überwachung erfordert, (c) die Kerntätigkeit die umfangreiche Verarbeitung besonderer Datenkategorien umfasst. In Deutschland: DSB ist Pflicht ab 20 Personen, die ständig mit automatisierter Verarbeitung befasst sind. Der DSB kann intern oder extern sein und muss fachlich qualifiziert sein."
+  },
+  {
+    "id": "gdpr-art44-49",
+    "source": "GDPR Art. 44-49",
+    "category": "gdpr",
+    "content": "DSGVO Artikel 44-49 – Übermittlung in Drittländer: Personenbezogene Daten dürfen nur in Drittländer übermittelt werden, wenn ein angemessenes Schutzniveau gewährleistet ist. Mechanismen: (a) Angemessenheitsbeschluss der EU-Kommission (Art. 45) – z.B. EU-US Data Privacy Framework, (b) Standardvertragsklauseln (SCCs) gemäß Art. 46, (c) Binding Corporate Rules (BCRs) für Konzerne, (d) Ausnahmen nach Art. 49 (ausdrückliche Einwilligung, Vertragserfüllung, wichtige öffentliche Interessen). Nach Schrems II: Zusätzliche Schutzmaßnahmen (Transfer Impact Assessment) erforderlich."
+  },
+  {
+    "id": "nis2-overview",
+    "source": "NIS2 Directive",
+    "category": "nis2",
+    "content": "NIS2-Richtlinie (EU 2022/2555) – Überblick: Die NIS2-Richtlinie trat am 16. Januar 2023 in Kraft und muss bis 17. Oktober 2024 in nationales Recht umgesetzt werden. Sie ersetzt die NIS-Richtlinie von 2016 und erweitert den Anwendungsbereich erheblich. Betroffen sind wesentliche (essential) und wichtige (important) Einrichtungen in 18 Sektoren. Unternehmen ab 50 Mitarbeitern oder 10 Mio. EUR Umsatz in kritischen Sektoren fallen unter die Richtlinie."
+  },
+  {
+    "id": "nis2-sectors",
+    "source": "NIS2 Directive",
+    "category": "nis2",
+    "content": "NIS2 – Betroffene Sektoren: Wesentliche Einrichtungen (Annex I): Energie, Verkehr, Bankwesen, Finanzmarktinfrastrukturen, Gesundheitswesen, Trinkwasser, Abwasser, Digitale Infrastruktur, ICT-Dienstleistungsmanagement, Öffentliche Verwaltung, Weltraum. Wichtige Einrichtungen (Annex II): Post- und Kurierdienste, Abfallbewirtschaftung, Chemie, Lebensmittel, Verarbeitendes Gewerbe, Digitale Dienste, Forschung."
+  },
+  {
+    "id": "nis2-requirements",
+    "source": "NIS2 Directive",
+    "category": "nis2",
+    "content": "NIS2 – Anforderungen an Cybersicherheitsmaßnahmen (Art. 21): Betroffene Einrichtungen müssen geeignete und verhältnismäßige technische, operative und organisatorische Maßnahmen ergreifen: (a) Risikoanalyse und Sicherheitskonzepte, (b) Bewältigung von Sicherheitsvorfällen, (c) Business Continuity und Krisenmanagement, (d) Sicherheit der Lieferkette, (e) Sicherheit bei Erwerb, Entwicklung und Wartung von IT-Systemen, (f) Bewertung der Wirksamkeit von Maßnahmen, (g) Cyberhygiene und Schulungen, (h) Kryptographie und Verschlüsselung, (i) Personalsicherheit und Zugangskontrollen, (j) Multi-Faktor-Authentifizierung."
+  },
+  {
+    "id": "nis2-incident",
+    "source": "NIS2 Directive",
+    "category": "nis2",
+    "content": "NIS2 – Meldepflichten bei Sicherheitsvorfällen (Art. 23): Erhebliche Sicherheitsvorfälle müssen gemeldet werden: Frühwarnung innerhalb von 24 Stunden, detaillierte Meldung innerhalb von 72 Stunden, Abschlussbericht innerhalb eines Monats. Ein Vorfall ist erheblich, wenn er schwerwiegende Betriebsstörungen oder finanzielle Verluste verursacht oder verursachen kann, oder wenn er andere natürliche oder juristische Personen durch erheblichen Schaden beeinträchtigt."
+  },
+  {
+    "id": "nis2-penalties",
+    "source": "NIS2 Directive",
+    "category": "nis2",
+    "content": "NIS2 – Sanktionen (Art. 34): Wesentliche Einrichtungen: Bußgelder bis zu 10 Mio. EUR oder 2% des weltweiten Jahresumsatzes. Wichtige Einrichtungen: Bußgelder bis zu 7 Mio. EUR oder 1,4% des Umsatzes. Geschäftsführerhaftung: Leitungsorgane können persönlich haftbar gemacht werden. Sie müssen Cybersicherheitsmaßnahmen billigen, deren Umsetzung überwachen und an Schulungen teilnehmen."
+  },
+  {
+    "id": "ai-act-overview",
+    "source": "EU AI Act",
+    "category": "ai-act",
+    "content": "EU AI Act (Verordnung 2024/1689) – Überblick: Der AI Act ist das weltweit erste umfassende KI-Gesetz. Er klassifiziert KI-Systeme nach Risiko: Verbotene KI (Art. 5): Social Scoring, unterschwellige Manipulation, biometrische Echtzeit-Identifizierung. Hochrisiko-KI (Annex III): Biometrie, kritische Infrastruktur, Bildung, Beschäftigung, Strafverfolgung, Migration, Justiz. Begrenztes Risiko: Transparenzpflichten (z.B. Chatbots müssen sich als KI identifizieren). Minimales Risiko: Keine besonderen Pflichten."
+  },
+  {
+    "id": "ai-act-obligations",
+    "source": "EU AI Act",
+    "category": "ai-act",
+    "content": "EU AI Act – Pflichten für Hochrisiko-KI (Art. 8-15): Risikomanagement-System einrichten (Art. 9), Datenqualität sicherstellen (Art. 10), technische Dokumentation erstellen (Art. 11), automatische Protokollierung (Art. 12), Transparenz und Informationspflichten (Art. 13), menschliche Aufsicht ermöglichen (Art. 14), Genauigkeit, Robustheit und Cybersicherheit (Art. 15). Konformitätsbewertung vor dem Inverkehrbringen erforderlich. CE-Kennzeichnung für zugelassene Systeme."
+  },
+  {
+    "id": "gobd-overview",
+    "source": "GoBD",
+    "category": "gobd",
+    "content": "GoBD (Grundsätze zur ordnungsmäßigen Führung und Aufbewahrung von Büchern, Aufzeichnungen und Unterlagen in elektronischer Form) – Überblick: Die GoBD regeln die digitale Buchführung und Archivierung in Deutschland. Kernanforderungen: Nachvollziehbarkeit und Nachprüfbarkeit, Vollständigkeit, Richtigkeit, zeitgerechte Buchung und Aufzeichnung, Ordnung, Unveränderbarkeit. Aufbewahrungsfristen: 10 Jahre für Buchungsbelege und Jahresabschlüsse, 6 Jahre für Geschäftsbriefe. Verfahrensdokumentation ist Pflicht."
+  },
+  {
+    "id": "gobd-documentation",
+    "source": "GoBD",
+    "category": "gobd",
+    "content": "GoBD – Verfahrensdokumentation: Jedes Unternehmen muss eine Verfahrensdokumentation erstellen, die beschreibt: Welche IT-Systeme eingesetzt werden, wie Daten erfasst, verarbeitet und archiviert werden, welche Kontrollen implementiert sind, wer Zugriff hat. Die Dokumentation muss umfassen: Allgemeine Beschreibung, Anwenderdokumentation, technische Systemdokumentation, Betriebsdokumentation. Die Verfahrensdokumentation muss bei Änderungen aktualisiert werden und für Prüfer zugänglich sein."
+  },
+  {
+    "id": "bsi-c5-overview",
+    "source": "BSI C5",
+    "category": "bsi-c5",
+    "content": "BSI C5 (Cloud Computing Compliance Criteria Catalogue) – Überblick: Der BSI C5 ist ein Kriterienkatalog für sicheres Cloud Computing, entwickelt vom Bundesamt für Sicherheit in der Informationstechnik (BSI). Er umfasst 17 Bereiche: Organisation der Informationssicherheit (OIS), Sicherheitsrichtlinien (SP), Personal (HR), Asset Management (AM), Physische Sicherheit (PS), Regelbetrieb (OPS), Identitäts- und Berechtigungsmanagement (IDM), Kryptographie (CRY), Kommunikationssicherheit (COS), Portabilität und Interoperabilität (PI), Beschaffung und Entwicklung (DEV), Steuerung von Dienstleistern (SSO), Sicherheitsvorfallmanagement (SIM), BCM (BCM), Compliance (COM), Umgang mit Ermittlungsanfragen (INQ), Produktsicherheit (PSS)."
+  },
+  {
+    "id": "bsi-c5-audit",
+    "source": "BSI C5",
+    "category": "bsi-c5",
+    "content": "BSI C5 – Audit-Typen: Typ 1 Bericht: Beschreibung der Maßnahmen und deren Angemessenheit zu einem Stichtag. Geeignet für Erstprüfungen. Typ 2 Bericht: Beschreibung der Maßnahmen, deren Angemessenheit UND Wirksamkeit über einen Zeitraum (mindestens 6 Monate). Standard für laufende Nachweise. Prüfer: Wirtschaftsprüfer mit IT-Audit-Qualifikation. Kosten: Abhängig von Scope, typisch 50.000-200.000 EUR. Häufigkeit: Jährlich empfohlen."
+  },
+  {
+    "id": "dsfa-process",
+    "source": "GDPR Art. 35",
+    "category": "gdpr",
+    "content": "Datenschutz-Folgenabschätzung (DSFA) – Prozess: 1. Prüfung der Erforderlichkeit (Schwellenwertanalyse): Liegt ein hohes Risiko vor? Blacklist der Aufsichtsbehörde prüfen. 2. Beschreibung der Verarbeitung: Zweck, Rechtsgrundlage, betroffene Daten, Datenflüsse, beteiligte Systeme. 3. Bewertung der Notwendigkeit und Verhältnismäßigkeit: Ist die Verarbeitung erforderlich? Gibt es mildere Mittel? 4. Risikobewertung: Eintrittswahrscheinlichkeit und Schwere für Betroffene bewerten. Risikomatrix erstellen. 5. Abhilfemaßnahmen: Technische und organisatorische Maßnahmen zur Risikominderung. 6. Dokumentation und Stellungnahme des DSB. 7. Regelmäßige Überprüfung und Aktualisierung."
+  },
+  {
+    "id": "tom-checklist",
+    "source": "GDPR Art. 32",
+    "category": "gdpr",
+    "content": "Technische und Organisatorische Maßnahmen (TOM) – Checkliste: Zutrittskontrolle: Schließsysteme, Besucherregelung, Alarmanlage. Zugangskontrolle: Passwortrichtlinien, Bildschirmsperre, Firewall, VPN. Zugriffskontrolle: Berechtigungskonzept, Need-to-know-Prinzip, Admin-Accounts. Weitergabekontrolle: Verschlüsselung (TLS, E-Mail), sichere Datenträgervernichtung. Eingabekontrolle: Protokollierung von Änderungen, Audit-Trail. Auftragskontrolle: AVV-Prüfung, Weisungsrecht dokumentiert. Verfügbarkeitskontrolle: Backup-Konzept, USV, Notfallplan. Trennungsgebot: Mandantentrennung, Testdaten anonymisiert."
+  },
+  {
+    "id": "penalties-overview",
+    "source": "GDPR/NIS2/AI Act",
+    "category": "compliance",
+    "content": "Bußgelder im Überblick: DSGVO Art. 83(5): Bis 20 Mio. EUR oder 4% des weltweiten Jahresumsatzes für schwere Verstöße (fehlende Rechtsgrundlage, Verletzung der Betroffenenrechte). DSGVO Art. 83(4): Bis 10 Mio. EUR oder 2% für andere Verstöße (fehlende TOM, kein VVT). NIS2: Wesentliche Einrichtungen bis 10 Mio. EUR oder 2%, wichtige bis 7 Mio. EUR oder 1,4%. AI Act: Verbotene KI bis 35 Mio. EUR oder 7%, Hochrisiko-Verstöße bis 15 Mio. EUR oder 3%. Geschäftsführer haften persönlich nach NIS2 und AI Act."
+  }
+]

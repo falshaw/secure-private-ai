@@ -1,0 +1,17 @@
+{
+  "_comment": "Per-app model + rate-limit policy. Apps identify themselves with the X-App-Name header. Copy to bridge-allowlist.json to customise (path set via CLAUDE_BRIDGE_ALLOWLIST_FILE, or BRIDGE_ALLOWLIST_FILE in docker compose). The bridge re-reads it on POST /admin/reload.",
+  "_format": {
+    "appName": {
+      "models": ["haiku", "sonnet", "opus"],
+      "maxRequestsPerHour": 100
+    },
+    "*": "fallback policy for apps not listed explicitly"
+  },
+
+  "crm": { "models": ["haiku", "sonnet", "opus"], "maxRequestsPerHour": 200 },
+  "fwmigrate": { "models": ["haiku", "sonnet"], "maxRequestsPerHour": 50 },
+  "research": { "models": ["sonnet", "opus"], "maxRequestsPerHour": 100 },
+  "trading": { "models": ["haiku", "sonnet"], "maxRequestsPerHour": 30 },
+
+  "*": { "models": ["haiku"], "maxRequestsPerHour": 20 }
+}
