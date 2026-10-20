@@ -2268,6 +2268,11 @@ server.listen(PORT, HOST, () => {
       ? `on (content=${REQUEST_LOG_CONTENT}, retentionDays=${REQUEST_LOG_RETENTION_DAYS})`
       : "off",
   });
+  if (BRIDGE_TOKEN === null) {
+    log("warn", "auth.disabled", {
+      note: "CLAUDE_BRIDGE_TOKEN is not set: every route is open to anyone who can reach this port. The bridge does not read bridge/.env; export the variable or use docker compose.",
+    });
+  }
   // Fire-and-forget — server is already accepting requests; backfill is
   // best-effort metadata that should not block listen.
   void backfillCollectionState();

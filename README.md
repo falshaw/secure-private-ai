@@ -36,7 +36,7 @@ Building blocks for running AI features in self-hosted, containerised apps witho
 ### How a call is handled
 
 1. **Auth.** Every route except `GET /health` requires `X-Bridge-Token` (or `Authorization: Bearer <token>` on the OpenAI-compatible `/v1/*` routes). Comparison is constant-time. `/metrics` is gated too.
-2. **Policy.** The allowlist entry for `X-App-Name` (or the `"*"` fallback) limits the models (`haiku`, `sonnet`, `opus`) and requests per hour (sliding one-hour window). Violations return `403`. This applies to `/generate`, `/rag/*` and `/v1/*`. Apps listed in the allowlist each get their own hourly bucket. Every other caller (no header, an unlisted name, `*`) shares one `"*"` bucket, because `X-App-Name` is chosen by the caller: inventing a new name per request does not reset the limit.
+2. **Policy.** The allowlist entry for `X-App-Name` (or the `"*"` fallback) limits the models (`haiku`, `sonnet`, `opus`) and requests per hour (sliding one-hour window). Violations return `403`. This applies to `/generate`, `/rag/*` and `/v1/*`. A `/generate` call without `model` runs on the first model in the caller's entry (so a `["haiku"]` app cannot reach the CLI's default model by leaving the field out); an unknown model name returns `400`. Apps listed in the allowlist each get their own hourly bucket. Every other caller (no header, an unlisted name, `*`) shares one `"*"` bucket, because `X-App-Name` is chosen by the caller: inventing a new name per request does not reset the limit.
 3. **Generation.** The prompt is piped to `claude -p` with tools disabled, an empty MCP config, slash commands disabled and no session persistence. A caller may request only `WebSearch` and `WebFetch` as tools. Transient errors (429/529/503/overload) are retried once.
 4. **Optional extras per call:** RAG augmentation from a Qdrant collection (with optional model-based reranking), an in-memory LRU cache (`cache: true`), and a fallback to a local Ollama model when the hosted quota is exhausted (`fallbackOnQuotaExhausted: true`, needs `OLLAMA_URL`).
 5. **Logging.** One JSONL record per `/generate` call: app, model, status, duration, prompt/response character counts and a 12-char SHA-256 prefix of the prompt. Prompt and response text are stored only with `BRIDGE_REQUEST_LOG_CONTENT=true`, truncated. Daily files, pruned after 30 days by default.
@@ -48,13 +48,13 @@ Building blocks for running AI features in self-hosted, containerised apps witho
 | GET | `/health` | Status of the CLI, Qdrant, Ollama, embedder, auth and allowlist (unauthenticated) |
 | GET | `/metrics` | Prometheus metrics |
 | POST | `/generate` | `{ prompt, system?, model?, rag?, cache?, tools?, fallbackOnQuotaExhausted? }` |
-| POST | `/v1/chat/completions` | OpenAI-compatible chat (non-streaming, or a single-chunk stream); no function calling |
+| POST | `/v1/chat/completions` | OpenAI-compatible chat (non-streaming, or a single-chunk stream); no function calling. `model` `haiku`/`sonnet`/`opus` is honoured, any other name runs on the caller's first allowed model (`sonnet` without an allowlist) |
 | POST | `/v1/embeddings` | OpenAI-compatible embeddings |
 | GET | `/v1/models` | Lists one model, `bridge` |
 | POST | `/rag/upsert`, `/rag/upsert-batch` | Embed and store text (optional sentence-window chunking) |
 | POST | `/rag/search` | Vector search, optional `rerank: true` |
 | GET | `/rag/collections` | Collections with the embedding model recorded for each |
-| DELETE | `/rag/:collection[/:id]` | Delete a point or a whole collection |
+| DELETE | `/rag/:collection[/:id]` | Delete a point (by the same `id` you upserted: UUID, integer or your own string, URL-encoded) or a whole collection |
 | POST | `/admin/reload` | Re-read allowlist and state from disk |
 | GET | `/log/tail?n=&app=` | Last N request-log records |
 
@@ -67,10 +67,13 @@ Requirements: Docker, a Claude Code login on the host (`claude login`, which cre
 ```bash
 cd bridge
 cp .env.example .env              # set CLAUDE_BRIDGE_TOKEN and CLAUDE_CREDENTIALS_FILE
-cp bridge-allowlist.example.json bridge-allowlist.json   # optional: edit the policy
+cp bridge-allowlist.example.json bridge-allowlist.json   # optional: edit the policy, then
+                                  # add BRIDGE_ALLOWLIST_FILE=./bridge-allowlist.json to .env
 docker compose up -d --build
-curl -s http://127.0.0.1:7777/health
+curl -s http://127.0.0.1:7777/health    # or the BRIDGE_PORT you set
 ```
+
+Without `BRIDGE_ALLOWLIST_FILE` in `.env`, compose mounts `bridge-allowlist.example.json`, so edits to your copy have no effect.
 
 On Windows (PowerShell) use `Copy-Item` instead of `cp`, and write `CLAUDE_CREDENTIALS_FILE` with forward slashes, e.g. `C:/Users/you/.claude/.credentials.json`.
 
@@ -102,7 +105,7 @@ curl -s http://127.0.0.1:7777/generate \
   -d '{"prompt":"Summarise this ticket in one line: ...","model":"haiku"}'
 ```
 
-Without Docker: `node bridge/claude-bridge.mjs` (Node 20+, `claude` on `PATH`). It binds to `127.0.0.1` by default.
+Without Docker: `node bridge/claude-bridge.mjs` (Node 20+, `claude` on `PATH`). It binds to `127.0.0.1` by default. It does not read `bridge/.env`: export the variables yourself, otherwise it starts with auth disabled (it logs an `auth.disabled` warning). `claude -p` then runs as your own user with your Claude Code login and user settings.
 
 **`/generate` returns `500` with "claude exited 1 ... not logged in or its credentials are missing/expired".** The CLI inside the container could not authenticate. Run `claude login` on the host, check that `CLAUDE_CREDENTIALS_FILE` points at the resulting `.credentials.json`, and recreate the container (`docker compose up -d --force-recreate`) so the fresh file is copied in. `/health` shows the CLI version but cannot tell whether the login is valid.
 
@@ -153,7 +156,7 @@ node cli/local-llm.mjs -m qwen2.5:14b "..."
 | `LOCAL_LLM_MODEL` | unset | Model to use (same as `-m`) |
 | `LOCAL_LLM_PREFERRED` | `gemma4:31b` | Comma-separated fallback list; first pulled model wins |
 | `LOCAL_LLM_DATA_DIR` | `data/local-llm` | Lock file and call log |
-| `LOCAL_LLM_THINK` | unset | `1` enables the model's reasoning mode |
+| `LOCAL_LLM_THINK` | unset | `1` (or `true`) enables the model's reasoning mode |
 | `LOCAL_LLM_NOLOG` | unset | `1` skips the call log |
 
 ## packages/auth
@@ -181,13 +184,14 @@ This package is independent of the bridge's `/rag/*` endpoints: use it for an em
 
 - `packages/rag-module`: `npm test` (needs Ollama with `nomic-embed-text`).
 - `packages/rag-module`: `npm run build` type-checks and compiles without Ollama.
-- Bridge: `node --test "bridge/test/*.test.mjs"` from the repo root (Node 20+, no dependencies, no CLI or Qdrant needed). Covers token auth, the per-app and shared rate limits (including the name-rotation case) and the model allowlist.
-- CLI: no automated tests. `node --check bridge/claude-bridge.mjs cli/local-llm.mjs` checks syntax; `/health` checks a running bridge.
+- Bridge: `node --test "bridge/test/*.test.mjs"` from the repo root (Node 20+, no dependencies, no CLI or Qdrant needed). Covers token auth, the per-app and shared rate limits (including the name-rotation case), the model allowlist and model defaulting, body validation (non-object JSON, oversized bodies), routing with query strings, metrics labels and RAG point-id mapping.
+- CLI: no automated tests. `node --check bridge/claude-bridge.mjs && node --check cli/local-llm.mjs` checks syntax (`node --check` reads one file; a second path is passed to it as an argument and not checked). `/health` checks a running bridge.
 
 ## Security notes
 
 - Keep the bridge on loopback. Anyone holding the token can generate text on your account, within the allowlist limits.
 - Always set `CLAUDE_BRIDGE_TOKEN` and ship an allowlist with a restrictive `"*"` entry; the bridge itself runs open if either is missing.
+- There is one shared token, not per-app credentials: `X-App-Name` is chosen by the caller, so the allowlist limits what a name can do, not who may use it. Every token holder can also call `/admin/reload` and read every app's `/log/tail`.
 - Prompts sent to `/generate` leave the machine (to the hosted model). Use the local CLI or Ollama for data that must not.
 
 ## License
