@@ -31,13 +31,15 @@ export interface Document {
   category?: string;
 }
 
-interface StoredDocument {
+// A type alias (not an interface) so rows satisfy LanceDB's
+// `Record<string, unknown>[]` input type, which needs an implicit index signature.
+type StoredDocument = {
   id: string;
   content: string;
   source: string;
   category: string;
   vector: number[];
-}
+};
 
 export interface SearchResult {
   id: string;
