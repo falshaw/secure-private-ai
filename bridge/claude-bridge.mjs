@@ -368,42 +368,71 @@ loadAllowlist();
 // Per-app request counters (sliding 1-hour window)
 // =============================================================================
 
-const requestWindows = new Map(); // app -> [timestamp...]
+const requestWindows = new Map(); // quota bucket -> [timestamp...]
+
+// The shared bucket that every caller without its own allowlist entry draws
+// from. X-App-Name is caller-chosen, so keying the "*" quota on it would let a
+// caller escape the limit by sending a new name per request.
+const SHARED_BUCKET = "*";
+
+// Own-property, object-valued entries only: "_comment"/"_format" (strings) and
+// inherited keys like "__proto__" or "constructor" must not count as an app
+// entry, or they would act as an unlimited policy.
+function ownEntry(appName) {
+  if (typeof appName !== "string" || appName === SHARED_BUCKET) return null;
+  if (!Object.prototype.hasOwnProperty.call(allowlist, appName)) return null;
+  const e = allowlist[appName];
+  return e && typeof e === "object" && !Array.isArray(e) ? e : null;
+}
+
+// Resolve the policy entry and the rate-limit bucket for a caller. Apps listed
+// in the allowlist get their own bucket; everyone else shares one.
+function resolvePolicy(appName) {
+  const own = ownEntry(appName);
+  if (own) return { entry: own, bucket: `app:${appName}` };
+  const wildcard = allowlist[SHARED_BUCKET];
+  return {
+    entry: wildcard && typeof wildcard === "object" ? wildcard : null,
+    bucket: SHARED_BUCKET,
+  };
+}
 
 function recordAppRequest(appName) {
+  const { bucket } = resolvePolicy(appName);
   const now = Date.now();
   const cutoff = now - 60 * 60_000;
-  const arr = requestWindows.get(appName) ?? [];
+  const arr = requestWindows.get(bucket) ?? [];
   while (arr.length && arr[0] < cutoff) arr.shift();
   arr.push(now);
-  requestWindows.set(appName, arr);
+  requestWindows.set(bucket, arr);
   return arr.length;
 }
-function getAppCount(appName) {
+function getBucketCount(bucket) {
   const now = Date.now();
   const cutoff = now - 60 * 60_000;
-  const arr = requestWindows.get(appName) ?? [];
+  const arr = requestWindows.get(bucket) ?? [];
   while (arr.length && arr[0] < cutoff) arr.shift();
   return arr.length;
 }
 function checkAllowlist(appName, model) {
-  const entry = allowlist[appName] ?? allowlist["*"];
+  const { entry, bucket } = resolvePolicy(appName);
   if (!entry) return { ok: true };
-  if (entry.models && model && !entry.models.includes(model)) {
+  const label = bucket === SHARED_BUCKET ? `shared "*" quota (app "${appName}")` : `app "${appName}"`;
+  if (Array.isArray(entry.models) && model && !entry.models.includes(model)) {
     return {
       ok: false,
-      error: `app "${appName}" not allowed model "${model}". Allowed: ${entry.models.join(", ")}`,
+      error: `${label} not allowed model "${model}". Allowed: ${entry.models.join(", ")}`,
     };
   }
   if (
     typeof entry.maxRequestsPerHour === "number" &&
     entry.maxRequestsPerHour > 0
   ) {
-    const count = getAppCount(appName);
+    const count = getBucketCount(bucket);
     if (count >= entry.maxRequestsPerHour) {
       return {
         ok: false,
-        error: `app "${appName}" exceeded rate limit ${count}/${entry.maxRequestsPerHour} per hour`,
+        error: `${label} exceeded rate limit ${count}/${entry.maxRequestsPerHour} per hour`,
       };
     }
   }
@@ -556,10 +585,10 @@ function renderPromText() {
   push("# TYPE claude_bridge_retries_total counter");
   push(`claude_bridge_retries_total ${metrics.retriesTransient}`);
 
-  push("# HELP claude_bridge_app_requests_hour Requests in last hour per app");
+  push("# HELP claude_bridge_app_requests_hour Requests in last hour per quota bucket (app:<name>, or * for the shared bucket)");
   push("# TYPE claude_bridge_app_requests_hour gauge");
-  for (const [app] of requestWindows) {
-    push(`claude_bridge_app_requests_hour{app="${escapeLabel(app)}"} ${getAppCount(app)}`);
+  for (const [bucket] of requestWindows) {
+    push(`claude_bridge_app_requests_hour{app="${escapeLabel(bucket)}"} ${getBucketCount(bucket)}`);
   }
 
   push("# HELP claude_bridge_cache_size Current LRU cache size");
@@ -653,6 +682,24 @@ function isTransientError(stderr) {
   return /\b(429|529|503|overload|rate.?limit|temporarily unavail|service unavail)\b/.test(lc);
 }
 
+// Turn a non-zero CLI exit into something a caller can act on. The CLI often
+// reports login problems on stdout (or not at all), so an empty stderr is the
+// usual sign of missing or expired credentials rather than a model error.
+function describeClaudeFailure(code, stderr, stdout) {
+  const err = (stderr ?? "").trim();
+  const out = (stdout ?? "").trim();
+  const detail = (err || out).slice(0, 800);
+  const authHint =
+    'The Claude Code CLI is probably not logged in or its credentials are missing/expired: ' +
+    'run "claude login" on the host and check that CLAUDE_CREDENTIALS_FILE points at the resulting ' +
+    '.credentials.json (docker compose), or that the user running the bridge is logged in.';
+  if (!detail) return `claude exited ${code} with no output. ${authHint}`;
+  if (/log ?in|logged|credential|api key|unauthori[sz]ed|authenticat|\b401\b|oauth|token.*expired/i.test(detail)) {
+    return `claude exited ${code}: ${detail}. ${authHint}`;
+  }
+  return `claude exited ${code}: ${detail}`;
+}
+
 const ALLOWED_RESEARCH_TOOLS = new Set(["WebSearch", "WebFetch"]);
 const RESEARCH_SPAWN_TIMEOUT_MS = Number(
   process.env.RESEARCH_SPAWN_TIMEOUT_MS ?? "300000",
@@ -727,7 +774,7 @@ function callClaudeOnce({ prompt, system, model, tools }) {
         resolve({
           ok: false,
           transient,
-          error: `claude exited ${code}: ${stderr.trim().slice(0, 800) || "(no stderr)"}`,
+          error: describeClaudeFailure(code, stderr, stdout),
           durationMs,
         });
         return;
