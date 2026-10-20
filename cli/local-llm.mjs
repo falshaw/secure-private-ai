@@ -73,9 +73,19 @@ if (!model || !installed.includes(model)) {
 
 // Piped input only on explicit `-f -`: auto-reading stdin whenever it is not a TTY hangs forever in shells
 // that hand the process an open pipe that never closes.
+const readInput = (f) => {
+  try {
+    return readFileSync(f === '-' ? 0 : f, 'utf8');
+  } catch (e) {
+    console.error(`cannot read ${f === '-' ? 'stdin' : f}: ${e.code ?? e.message}`);
+    process.exit(1);
+  }
+};
 const context = files
-  .map((f) => (f === '-' ? `<stdin>\n${readFileSync(0, 'utf8')}\n</stdin>` : `<file name="${basename(f)}">\n${readFileSync(f, 'utf8')}\n</file>`))
+  .map((f) => (f === '-' ? `<stdin>\n${readInput(f)}\n</stdin>` : `<file name="${basename(f)}">\n${readInput(f)}\n</file>`))
   .join('\n\n');
+// Without this the model tends to copy the wrapper tags into its answer (seen with -o translations).
+if (files.length) system += '\n\nThe input is wrapped in <file> or <stdin> tags. Do not repeat those tags in your answer.';
 const content = context ? `${context}\n\n${prompt}` : prompt;
 
 // Ollama defaults to a 4k window and silently truncates — size it to the input (~3.5 chars/token)
@@ -112,7 +122,8 @@ const body = JSON.stringify({
   model,
   stream: true,
   // LOCAL_LLM_THINK=1 lets the model reason first (slower, fewer slips); the reasoning is not part of the output.
-  think: !!process.env.LOCAL_LLM_THINK,
+  // Only explicit truthy values: `!!"0"` and `!!"false"` are true in JavaScript.
+  think: ['1', 'true', 'yes'].includes((process.env.LOCAL_LLM_THINK ?? '').toLowerCase()),
   options: { num_ctx: numCtx },
   messages: [{ role: 'system', content: system }, { role: 'user', content }],
 });
