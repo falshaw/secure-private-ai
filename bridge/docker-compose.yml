@@ -21,7 +21,6 @@ name: llm-bridge
 services:
   bridge:
     build: .
-    image: llm-bridge:latest
     environment:
       - CLAUDE_BRIDGE_HOST=0.0.0.0          # bind inside container; only the published 127.0.0.1 port is exposed
       - CLAUDE_BRIDGE_PORT=7777
