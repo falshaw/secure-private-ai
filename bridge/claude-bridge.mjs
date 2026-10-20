@@ -414,7 +414,7 @@ function getBucketCount(bucket) {
   while (arr.length && arr[0] < cutoff) arr.shift();
   return arr.length;
 }
-function checkAllowlist(appName, model) {
+function checkAllowlist(appName, model, { skipRate = false } = {}) {
   const { entry, bucket } = resolvePolicy(appName);
   if (!entry) return { ok: true };
   const label = bucket === SHARED_BUCKET ? `shared "*" quota (app "${appName}")` : `app "${appName}"`;
@@ -425,6 +425,7 @@ function checkAllowlist(appName, model) {
     };
   }
   if (
+    !skipRate &&
     typeof entry.maxRequestsPerHour === "number" &&
     entry.maxRequestsPerHour > 0
   ) {
@@ -437,6 +438,21 @@ function checkAllowlist(appName, model) {
     }
   }
   return { ok: true };
+}
+
+// The model a call actually runs on. Without this, a request that omits
+// `model` skips the model check and runs the CLI's default model, so an app
+// limited to ["haiku"] could get the account's default tier just by leaving the
+// field out. When the caller's policy lists models, an omitted model becomes
+// the first one listed; with no policy it stays undefined (CLI default).
+function resolveModel(appName, requested) {
+  if (requested) return requested;
+  const { entry } = resolvePolicy(appName);
+  if (entry && Array.isArray(entry.models)) {
+    const first = entry.models.find((m) => VALID_MODELS.has(m));
+    if (first) return first;
+  }
+  return undefined;
 }
 
 // =============================================================================
@@ -1113,20 +1129,32 @@ async function qdrantListCollections() {
 function isValidCollectionName(name) {
   return typeof name === "string" && /^[a-z0-9_-]{1,80}$/.test(name);
 }
+// Payloads are spread into the stored point; a string or array would be
+// spread character by character / index by index.
+function isPlainPayload(p) {
+  return p === undefined || p === null || (typeof p === "object" && !Array.isArray(p));
+}
 
 // =============================================================================
 // HTTP helpers
 // =============================================================================
 
+class BodyTooLargeError extends Error {}
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let len = 0;
+    let tooLarge = false;
     req.on("data", (c) => {
+      if (tooLarge) return; // discard the rest; the 413 is already on its way
       len += c.length;
       if (len > MAX_BODY_BYTES) {
-        reject(new Error(`body exceeds ${MAX_BODY_BYTES} bytes`));
-        req.destroy();
+        // Do not destroy the socket here: that drops the connection before the
+        // 413 is written and the client only sees a reset.
+        tooLarge = true;
+        chunks.length = 0;
+        reject(new BodyTooLargeError(`body exceeds ${MAX_BODY_BYTES} bytes`));
         return;
       }
       chunks.push(c);
@@ -1159,16 +1187,32 @@ async function parseJsonBody(req, res, reqId) {
   try {
     bodyText = await readBody(req);
   } catch (err) {
-    send(res, 413, { ok: false, error: err.message }, reqId);
+    if (err instanceof BodyTooLargeError) {
+      // Close the connection once the 413 is flushed so an oversized upload
+      // is not read to the end.
+      res.setHeader("Connection", "close");
+      res.on("finish", () => req.socket?.destroy());
+      send(res, 413, { ok: false, error: err.message }, reqId);
+    } else {
+      send(res, 400, { ok: false, error: `request body error: ${err.message}` }, reqId);
+    }
     return null;
   }
   if (bodyText === "") return {};
+  let parsed;
   try {
-    return JSON.parse(bodyText);
+    parsed = JSON.parse(bodyText);
   } catch {
     send(res, 400, { ok: false, error: "invalid JSON body" }, reqId);
     return null;
   }
+  // Handlers read fields off the body and treat a null return as "response
+  // already sent", so a literal `null` body used to leave the request hanging.
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    send(res, 400, { ok: false, error: "JSON body must be an object" }, reqId);
+    return null;
+  }
+  return parsed;
 }
 
 function getRequestContext(req) {
@@ -1215,8 +1259,21 @@ async function handleGenerate(req, res, ctx) {
     return send(res, 400, { ok: false, error: "prompt is required" }, ctx.requestId);
   }
   const system = typeof body.system === "string" ? body.system : undefined;
-  const modelRaw = typeof body.model === "string" ? body.model.toLowerCase() : undefined;
-  const model = modelRaw && VALID_MODELS.has(modelRaw) ? modelRaw : undefined;
+  if (body.model !== undefined && body.model !== null) {
+    const m = typeof body.model === "string" ? body.model.toLowerCase() : "";
+    if (!VALID_MODELS.has(m)) {
+      return send(
+        res,
+        400,
+        { ok: false, error: `unknown model ${JSON.stringify(body.model)}; use one of: ${[...VALID_MODELS].join(", ")}` },
+        ctx.requestId,
+      );
+    }
+  }
+  const model = resolveModel(
+    ctx.appName,
+    typeof body.model === "string" ? body.model.toLowerCase() : undefined,
+  );
   const useCache = body.cache === true;
   const fallbackOnQuota = body.fallbackOnQuotaExhausted === true;
   const requestedTools = Array.isArray(body.tools)
@@ -1381,7 +1438,9 @@ async function handleGenerate(req, res, ctx) {
       reason: (result.error ?? "").slice(0, 200),
     });
     metrics.fallbacksOllama += 1;
+    const original = result.error;
     result = await callOllamaFallback({ prompt: augmentedPrompt, system });
+    if (!result.ok) result.error = `${result.error} (original error: ${original})`;
   }
 
   if (ragChunksUsed > 0) result.ragChunksUsed = ragChunksUsed;
@@ -1442,6 +1501,9 @@ async function handleRagUpsert(req, res, ctx) {
   }
   if (text.length > 200_000) {
     return send(res, 400, { ok: false, error: "text exceeds 200KB" }, ctx.requestId);
+  }
+  if (!isPlainPayload(payload)) {
+    return send(res, 400, { ok: false, error: "payload must be a JSON object" }, ctx.requestId);
   }
   const collection = resolveCollectionName(collName);
   try {
@@ -1544,6 +1606,9 @@ async function handleRagUpsertBatch(req, res, ctx) {
       { ok: false, error: "items must be an array of 1..100 entries" },
       ctx.requestId,
     );
+  }
+  if (!items.every((it) => isPlainPayload(it?.payload))) {
+    return send(res, 400, { ok: false, error: "item payload must be a JSON object" }, ctx.requestId);
   }
   const collection = resolveCollectionName(collName);
   try {
@@ -1689,8 +1754,12 @@ async function handleRagDelete(req, res, ctx, collName, id) {
   }
   if (!id) return send(res, 400, { ok: false, error: "id required" }, ctx.requestId);
   const collection = resolveCollectionName(collName);
+  // Map the id the same way upsert did: a UUID or an unsigned integer is the
+  // Qdrant id itself, any other string is hashed. Passing the raw string makes
+  // Qdrant reject the request, so numeric and external ids could not be deleted.
+  const { qdrantId } = normalizePointId(id, null);
   try {
-    await qdrantDeletePoint(collection, id);
+    await qdrantDeletePoint(collection, qdrantId);
     return send(res, 200, { ok: true, id, collection }, ctx.requestId);
   } catch (err) {
     return send(res, 500, { ok: false, error: err.message }, ctx.requestId);
@@ -1747,18 +1816,16 @@ async function handleRagCollections(_req, res, ctx) {
 
 async function handleHealth(_req, res, ctx) {
   const claudeV = await getClaudeVersion();
+  // Short timeout: the Docker health check gives /health 10 s in total, and a
+  // Qdrant address that drops packets would otherwise hold it for 30 s.
   let qdrantOk = false;
   try {
-    await qdrantRequest("GET", "/healthz");
-    qdrantOk = true;
-  } catch {
-    try {
-      const r = await fetch(`${QDRANT_URL}/healthz`, {
-        signal: AbortSignal.timeout(2_000),
-      });
-      qdrantOk = r.ok;
-    } catch { qdrantOk = false; }
-  }
+    const r = await fetch(`${QDRANT_URL}/healthz`, {
+      headers: QDRANT_API_KEY ? { "api-key": QDRANT_API_KEY } : undefined,
+      signal: AbortSignal.timeout(2_000),
+    });
+    qdrantOk = r.ok;
+  } catch { qdrantOk = false; }
   let ollamaOk = false;
   try {
     const r = await fetch(`${OLLAMA_URL}/api/tags`, {
@@ -1865,8 +1932,17 @@ async function handleOpenAIChat(req, res, ctx) {
   }
   if (!prompt || !prompt.trim()) prompt = "(no content)";
 
-  const model = "sonnet"; // map any client model name → a bridge model
-  const policy = checkAllowlist(ctx.appName, model);
+  // A bridge model name (haiku/sonnet/opus) is honoured; any other client model
+  // name maps to the caller's first allowed model, or sonnet without a policy.
+  const requested =
+    typeof body.model === "string" && VALID_MODELS.has(body.model.toLowerCase())
+      ? body.model.toLowerCase()
+      : undefined;
+  const model = resolveModel(ctx.appName, requested) ?? "sonnet";
+  // Model check only: the router already counted this request against the
+  // hourly quota, and checking the quota again here denied the last allowed
+  // request (off by one).
+  const policy = checkAllowlist(ctx.appName, model, { skipRate: true });
   if (!policy.ok) {
     log("warn", "v1.chat.denied.policy", {
       requestId: ctx.requestId,
@@ -2009,17 +2085,43 @@ async function handleOpenAIEmbeddings(req, res, ctx) {
 // Server
 // =============================================================================
 
+const ROUTES = new Set([
+  "GET /health", "GET /metrics", "POST /generate", "POST /v1/chat/completions",
+  "POST /v1/embeddings", "GET /v1/models", "POST /rag/upsert", "POST /rag/upsert-batch",
+  "POST /rag/search", "GET /rag/collections", "POST /admin/reload", "GET /log/tail",
+]);
+function pathnameOf(url) {
+  try {
+    return new URL(url ?? "/", "http://localhost").pathname;
+  } catch {
+    return "/";
+  }
+}
+function routeLabelFor(method, path) {
+  const key = `${method} ${path}`;
+  if (ROUTES.has(key)) return path;
+  if (method === "DELETE" && path.startsWith("/rag/")) return "/rag/:collection";
+  return "other";
+}
+
 const server = createServer(async (req, res) => {
   const ctx = getRequestContext(req);
+  // Route on the path only, so a query string (e.g. /health?probe=1) does not
+  // turn a known route into a 401 or 404.
+  const path = pathnameOf(req.url);
+  // Metrics label: a fixed route name, never the raw URL. Keying the counter on
+  // req.url let any caller, even without a token, add a permanent entry per
+  // unique URL.
+  const routeLabel = routeLabelFor(req.method, path);
   // /health stays open — Docker health checks cannot carry a token.
   // /metrics is NOT exempt: it leaks per-app request counts and model tiers,
   // so a Prometheus job must send X-Bridge-Token.
-  const isPublic = req.method === "GET" && req.url === "/health";
+  const isPublic = req.method === "GET" && path === "/health";
   // /v1/* is token-gated too (otherwise it would be an unauthenticated path to
   // generation). OpenAI-compatible clients send the bridge token as their API
   // key (Authorization: Bearer <token>).
   if (!isPublic && !checkAuth(ctx)) {
-    incMap(metrics.requestsTotal, `${req.method},${req.url ?? ""},401`);
+    incMap(metrics.requestsTotal, `${req.method},${routeLabel},401`);
     return send(
       res,
       401,
@@ -2031,14 +2133,13 @@ const server = createServer(async (req, res) => {
   // rerank and /v1/chat both spawn generation). /generate keeps its own model-aware
   // check inside handleGenerate; /v1/chat additionally model-checks "sonnet".
   if (
-    typeof req.url === "string" &&
-    (req.url.startsWith("/rag/") ||
-      req.url === "/v1/chat/completions" ||
-      req.url === "/v1/embeddings")
+    (path.startsWith("/rag/") ||
+      path === "/v1/chat/completions" ||
+      path === "/v1/embeddings")
   ) {
     const policy = checkAllowlist(ctx.appName, null);
     if (!policy.ok) {
-      incMap(metrics.requestsTotal, `${req.method},${req.url ?? ""},403`);
+      incMap(metrics.requestsTotal, `${req.method},${routeLabel},403`);
       log("warn", "policy.denied", {
         requestId: ctx.requestId,
         app: ctx.appName,
@@ -2051,32 +2152,32 @@ const server = createServer(async (req, res) => {
   }
   let status = 200;
   try {
-    if (req.method === "GET" && req.url === "/health") {
+    if (req.method === "GET" && path === "/health") {
       await handleHealth(req, res, ctx);
       status = res.statusCode;
       return;
     }
-    if (req.method === "GET" && req.url === "/metrics") {
+    if (req.method === "GET" && path === "/metrics") {
       await handleMetrics(req, res);
       status = res.statusCode;
       return;
     }
-    if (req.method === "POST" && req.url === "/generate") {
+    if (req.method === "POST" && path === "/generate") {
       await handleGenerate(req, res, ctx);
       status = res.statusCode;
       return;
     }
-    if (req.method === "POST" && req.url === "/v1/chat/completions") {
+    if (req.method === "POST" && path === "/v1/chat/completions") {
       await handleOpenAIChat(req, res, ctx);
       status = res.statusCode;
       return;
     }
-    if (req.method === "POST" && req.url === "/v1/embeddings") {
+    if (req.method === "POST" && path === "/v1/embeddings") {
       await handleOpenAIEmbeddings(req, res, ctx);
       status = res.statusCode;
       return;
     }
-    if (req.method === "GET" && req.url === "/v1/models") {
+    if (req.method === "GET" && path === "/v1/models") {
       sendText(
         res,
         200,
@@ -2089,38 +2190,38 @@ const server = createServer(async (req, res) => {
       status = res.statusCode;
       return;
     }
-    if (req.method === "POST" && req.url === "/rag/upsert") {
+    if (req.method === "POST" && path === "/rag/upsert") {
       await handleRagUpsert(req, res, ctx);
       status = res.statusCode;
       return;
     }
-    if (req.method === "POST" && req.url === "/rag/upsert-batch") {
+    if (req.method === "POST" && path === "/rag/upsert-batch") {
       await handleRagUpsertBatch(req, res, ctx);
       status = res.statusCode;
       return;
     }
-    if (req.method === "POST" && req.url === "/rag/search") {
+    if (req.method === "POST" && path === "/rag/search") {
       await handleRagSearch(req, res, ctx);
       status = res.statusCode;
       return;
     }
-    if (req.method === "GET" && req.url === "/rag/collections") {
+    if (req.method === "GET" && path === "/rag/collections") {
       await handleRagCollections(req, res, ctx);
       status = res.statusCode;
       return;
     }
-    if (req.method === "POST" && req.url === "/admin/reload") {
+    if (req.method === "POST" && path === "/admin/reload") {
       await handleReload(req, res, ctx);
       status = res.statusCode;
       return;
     }
-    if (req.method === "GET" && req.url?.startsWith("/log/tail")) {
+    if (req.method === "GET" && path === "/log/tail") {
       await handleLogTail(req, res, ctx);
       status = res.statusCode;
       return;
     }
-    if (req.method === "DELETE" && req.url?.startsWith("/rag/")) {
-      const parts = req.url
+    if (req.method === "DELETE" && path.startsWith("/rag/")) {
+      const parts = path
         .slice(5)
         .split("/")
         .filter((p) => p.length > 0);
@@ -2148,7 +2249,7 @@ const server = createServer(async (req, res) => {
   } finally {
     incMap(
       metrics.requestsTotal,
-      `${req.method ?? "?"},${req.url ?? "?"},${status}`,
+      `${req.method ?? "?"},${routeLabel},${status}`,
     );
   }
 });
