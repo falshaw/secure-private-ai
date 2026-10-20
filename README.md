@@ -36,7 +36,7 @@ Building blocks for running AI features in self-hosted, containerised apps witho
 ### How a call is handled
 
 1. **Auth.** Every route except `GET /health` requires `X-Bridge-Token` (or `Authorization: Bearer <token>` on the OpenAI-compatible `/v1/*` routes). Comparison is constant-time. `/metrics` is gated too.
-2. **Policy.** The allowlist entry for `X-App-Name` (or the `"*"` fallback) limits the models (`haiku`, `sonnet`, `opus`) and requests per hour (sliding one-hour window). Violations return `403`. This applies to `/generate`, `/rag/*` and `/v1/*`.
+2. **Policy.** The allowlist entry for `X-App-Name` (or the `"*"` fallback) limits the models (`haiku`, `sonnet`, `opus`) and requests per hour (sliding one-hour window). Violations return `403`. This applies to `/generate`, `/rag/*` and `/v1/*`. Apps listed in the allowlist each get their own hourly bucket. Every other caller (no header, an unlisted name, `*`) shares one `"*"` bucket, because `X-App-Name` is chosen by the caller: inventing a new name per request does not reset the limit.
 3. **Generation.** The prompt is piped to `claude -p` with tools disabled, an empty MCP config, slash commands disabled and no session persistence. A caller may request only `WebSearch` and `WebFetch` as tools. Transient errors (429/529/503/overload) are retried once.
 4. **Optional extras per call:** RAG augmentation from a Qdrant collection (with optional model-based reranking), an in-memory LRU cache (`cache: true`), and a fallback to a local Ollama model when the hosted quota is exhausted (`fallbackOnQuotaExhausted: true`, needs `OLLAMA_URL`).
 5. **Logging.** One JSONL record per `/generate` call: app, model, status, duration, prompt/response character counts and a 12-char SHA-256 prefix of the prompt. Prompt and response text are stored only with `BRIDGE_REQUEST_LOG_CONTENT=true`, truncated. Daily files, pruned after 30 days by default.
@@ -72,6 +72,24 @@ docker compose up -d --build
 curl -s http://127.0.0.1:7777/health
 ```
 
+On Windows (PowerShell) use `Copy-Item` instead of `cp`, and write `CLAUDE_CREDENTIALS_FILE` with forward slashes, e.g. `C:/Users/you/.claude/.credentials.json`.
+
+**Project name.** The compose file sets `name: llm-bridge`, so the stack does not take its name from the `bridge/` directory. If you already run a compose project with the same name, or want a second copy, pass a distinct name and port, otherwise compose treats the two as one project and recreates the other stack's containers:
+
+```bash
+BRIDGE_PORT=17777 docker compose -p my-bridge up -d --build    # PowerShell: $env:BRIDGE_PORT=17777; docker compose -p my-bridge up -d --build
+docker compose -p my-bridge down                                 # stop it with the same -p
+```
+
+**Qdrant.** `/rag/*` needs a Qdrant. By default `QDRANT_URL` is `http://host.docker.internal:6333`, i.e. a Qdrant already published on the host's port 6333. Without one, `/health` reports Qdrant as unreachable and `/rag/*` returns errors; `/generate` works regardless. To use the Qdrant bundled in the compose file instead (no host port published, data in a named volume):
+
+```bash
+# in bridge/.env
+QDRANT_URL=http://qdrant:6333
+# then
+docker compose --profile qdrant up -d --build
+```
+
 The port is published on `127.0.0.1` only. Containers reach it at `http://host.docker.internal:7777` (add `extra_hosts: ["host.docker.internal:host-gateway"]` on Linux). The container drops all capabilities, sets `no-new-privileges`, runs as a non-root user and has memory/CPU/PID limits. The credentials file is mounted read-only and copied into the container's home on start.
 
 Calling it from an app:
@@ -85,6 +103,8 @@ curl -s http://127.0.0.1:7777/generate \
 ```
 
 Without Docker: `node bridge/claude-bridge.mjs` (Node 20+, `claude` on `PATH`). It binds to `127.0.0.1` by default.
+
+**`/generate` returns `500` with "claude exited 1 ... not logged in or its credentials are missing/expired".** The CLI inside the container could not authenticate. Run `claude login` on the host, check that `CLAUDE_CREDENTIALS_FILE` points at the resulting `.credentials.json`, and recreate the container (`docker compose up -d --force-recreate`) so the fresh file is copied in. `/health` shows the CLI version but cannot tell whether the login is valid.
 
 ### Configuration
 
@@ -108,7 +128,7 @@ Without Docker: `node bridge/claude-bridge.mjs` (Node 20+, `claude` on `PATH`). 
 | `BRIDGE_STATE_FILE` | `bridge/.bridge-state.json` | Collection metadata |
 | `BRIDGE_REQUEST_LOG`, `_DIR`, `_RETENTION_DAYS`, `_CONTENT`, `_CONTENT_MAX` | `true`, `bridge/.bridge-logs`, `30`, `false`, `500` | Request log |
 
-Compose-only: `CLAUDE_CREDENTIALS_FILE` (host path of the credentials file) and `BRIDGE_ALLOWLIST_FILE` (host path of the allowlist).
+Compose-only: `CLAUDE_CREDENTIALS_FILE` (host path of the credentials file), `BRIDGE_ALLOWLIST_FILE` (host path of the allowlist) and `BRIDGE_PORT` (host port, default `7777`). In compose, `QDRANT_URL` defaults to `http://host.docker.internal:6333` (the host's Qdrant); set it to `http://qdrant:6333` with `--profile qdrant` for the bundled one.
 
 ## Local model CLI
 
@@ -160,7 +180,9 @@ This package is independent of the bridge's `/rag/*` endpoints: use it for an em
 ## Tests
 
 - `packages/rag-module`: `npm test` (needs Ollama with `nomic-embed-text`).
-- Bridge and CLI: no automated tests in this repo. `node --check bridge/claude-bridge.mjs cli/local-llm.mjs` checks syntax; `/health` checks a running bridge.
+- `packages/rag-module`: `npm run build` type-checks and compiles without Ollama.
+- Bridge: `node --test "bridge/test/*.test.mjs"` from the repo root (Node 20+, no dependencies, no CLI or Qdrant needed). Covers token auth, the per-app and shared rate limits (including the name-rotation case) and the model allowlist.
+- CLI: no automated tests. `node --check bridge/claude-bridge.mjs cli/local-llm.mjs` checks syntax; `/health` checks a running bridge.
 
 ## Security notes
 
