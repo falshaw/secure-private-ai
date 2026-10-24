@@ -66,7 +66,7 @@ Requirements: Docker, a Claude Code login on the host (`claude login`, which cre
 
 ```bash
 cd bridge
-cp .env.example .env              # set CLAUDE_BRIDGE_TOKEN and CLAUDE_CREDENTIALS_FILE
+cp .env.example .env              # set CLAUDE_BRIDGE_TOKEN (24+ random characters) and CLAUDE_CREDENTIALS_FILE
 cp bridge-allowlist.example.json bridge-allowlist.json   # optional: edit the policy, then
                                   # add BRIDGE_ALLOWLIST_FILE=./bridge-allowlist.json to .env
 docker compose up -d --build
@@ -84,14 +84,9 @@ BRIDGE_PORT=17777 docker compose -p my-bridge up -d --build    # PowerShell: $en
 docker compose -p my-bridge down                                 # stop it with the same -p
 ```
 
-**Qdrant.** `/rag/*` needs a Qdrant. By default `QDRANT_URL` is `http://host.docker.internal:6333`, i.e. a Qdrant already published on the host's port 6333. Without one, `/health` reports Qdrant as unreachable and `/rag/*` returns errors; `/generate` works regardless. To use the Qdrant bundled in the compose file instead (no host port published, data in a named volume):
+The bridge refuses to start with a placeholder token (such as `change-me`) or one shorter than 24 characters; `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"` prints a good one.
 
-```bash
-# in bridge/.env
-QDRANT_URL=http://qdrant:6333
-# then
-docker compose --profile qdrant up -d --build
-```
+**Qdrant.** `/rag/*` needs a Qdrant. `.env.example` starts the one bundled in the compose file (`COMPOSE_PROFILES=qdrant`, `QDRANT_URL=http://qdrant:6333`: no host port published, data in a named volume), so a test run never writes into a Qdrant you already have. To use a Qdrant published on the host's port 6333 instead, delete the `COMPOSE_PROFILES` line and set `QDRANT_URL=http://host.docker.internal:6333`. Without a reachable Qdrant, `/health` reports it as unreachable and `/rag/*` returns errors; `/generate` works regardless. A search or delete in a collection that does not exist returns `404`.
 
 The port is published on `127.0.0.1` only. Containers reach it at `http://host.docker.internal:7777` (add `extra_hosts: ["host.docker.internal:host-gateway"]` on Linux). The container drops all capabilities, sets `no-new-privileges`, runs as a non-root user and has memory/CPU/PID limits. The credentials file is mounted read-only and copied into the container's home on start.
 
@@ -113,7 +108,8 @@ Without Docker: `node bridge/claude-bridge.mjs` (Node 20+, `claude` on `PATH`). 
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `CLAUDE_BRIDGE_TOKEN` | unset | Shared secret. **If unset, auth is disabled**; the compose file refuses to start without it |
+| `CLAUDE_BRIDGE_TOKEN` | unset | Shared secret. **If unset, auth is disabled**; the compose file refuses to start without it, and the bridge refuses placeholders and values under 24 characters |
+| `CLAUDE_BRIDGE_ADMIN_TOKEN` | unset | Optional second secret: when set, `/admin/reload` and `/log/tail` also need `X-Admin-Token: <value>` |
 | `CLAUDE_BRIDGE_HOST` / `CLAUDE_BRIDGE_PORT` | `127.0.0.1` / `7777` | Bind address |
 | `CLAUDE_BRIDGE_ALLOWLIST_FILE` | `bridge/bridge-allowlist.json` | Policy file. **If missing, no per-app policy is enforced** |
 | `CLAUDE_BIN` | `claude` | CLI binary |
@@ -161,7 +157,7 @@ node cli/local-llm.mjs -m qwen2.5:14b "..."
 
 ## packages/auth
 
-`@falshaw/auth`: `hashPassword` / `verifyPassword` (bcrypt, cost 12), `encodeJwtSecret` (with optional minimum length), `signHs256` and `verifyHs256` (algorithm pinned to HS256). Peer dependencies: `jose`, `bcryptjs`. Apps that build in an isolated Docker context can vendor the single file. See [packages/auth/README.md](packages/auth/README.md).
+`@falshaw/auth`: `hashPassword` / `verifyPassword` (bcrypt, cost 12), `encodeJwtSecret` (with optional minimum length), `signHs256` and `verifyHs256` (algorithm pinned to HS256). Peer dependencies: `jose`, `bcryptjs`. `npm install` builds it to `dist/` (ES module with type declarations), so it imports from plain Node as well as TypeScript. Apps that build in an isolated Docker context can vendor the single `auth-core.ts` file. See [packages/auth/README.md](packages/auth/README.md).
 
 ## packages/rag-module
 
@@ -182,16 +178,19 @@ This package is independent of the bridge's `/rag/*` endpoints: use it for an em
 
 ## Tests
 
-- `packages/rag-module`: `npm test` (needs Ollama with `nomic-embed-text`).
+- `packages/rag-module`: `npm test` (needs Ollama with `nomic-embed-text`). Fails, with exit code 1, when the expected passage is not the top search result, the context builder starts with the wrong source or the document count is off.
 - `packages/rag-module`: `npm run build` type-checks and compiles without Ollama.
 - Bridge: `node --test "bridge/test/*.test.mjs"` from the repo root (Node 20+, no dependencies, no CLI or Qdrant needed). Covers token auth, the per-app and shared rate limits (including the name-rotation case), the model allowlist and model defaulting, body validation (non-object JSON, oversized bodies), routing with query strings, metrics labels and RAG point-id mapping.
-- CLI: no automated tests. `node --check bridge/claude-bridge.mjs && node --check cli/local-llm.mjs` checks syntax (`node --check` reads one file; a second path is passed to it as an argument and not checked). `/health` checks a running bridge.
+- Bridge hardening (`bridge/test/hardening.test.mjs`): placeholder and short tokens refused at startup, the optional admin token, `404` for a missing collection.
+- CLI: `node --test "cli/test/*.test.mjs"` from the repo root, against a fake Ollama (no model needed). Covers model selection (preferred list, `-m`, an empty `LOCAL_LLM_MODEL`), the `think` flag, context sizing, file and stdin wrapping, `-o`, the call log and its opt-out, the lock release and every exit code.
+- `packages/auth`: `npm install && npm test` (build, then bcrypt cost and verification, secret length, sign/verify, expiry, tampering, the HS256 pin).
+- `/health` checks a running bridge.
 
 ## Security notes
 
 - Keep the bridge on loopback. Anyone holding the token can generate text on your account, within the allowlist limits.
 - Always set `CLAUDE_BRIDGE_TOKEN` and ship an allowlist with a restrictive `"*"` entry; the bridge itself runs open if either is missing.
-- There is one shared token, not per-app credentials: `X-App-Name` is chosen by the caller, so the allowlist limits what a name can do, not who may use it. Every token holder can also call `/admin/reload` and read every app's `/log/tail`.
+- There is one shared token, not per-app credentials: `X-App-Name` is chosen by the caller, so the allowlist limits what a name can do, not who may use it. Without `CLAUDE_BRIDGE_ADMIN_TOKEN`, every token holder can also call `/admin/reload` and read every app's `/log/tail`; set it to keep those two routes to whoever holds the second secret.
 - Prompts sent to `/generate` leave the machine (to the hosted model). Use the local CLI or Ollama for data that must not.
 
 ## License

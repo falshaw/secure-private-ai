@@ -2,8 +2,8 @@
 # http://host.docker.internal:7777 (published on 127.0.0.1 only).
 #
 #   Start:  docker compose up -d --build            (run from bridge/)
-#   With the bundled Qdrant for /rag/*:
-#           docker compose --profile qdrant up -d --build   (and QDRANT_URL=http://qdrant:6333 in .env)
+#   The .env.example sets COMPOSE_PROFILES=qdrant and QDRANT_URL=http://qdrant:6333,
+#   so the bundled Qdrant starts too; remove both to use a Qdrant on the host.
 #   Stop:   docker compose down
 #   Logs:   docker compose logs -f
 #
@@ -29,11 +29,13 @@ services:
       # Bearer on /v1/*). Compose refuses to start without it, because the bridge
       # itself treats an empty token as "auth disabled".
       - CLAUDE_BRIDGE_TOKEN=${CLAUDE_BRIDGE_TOKEN:?set CLAUDE_BRIDGE_TOKEN in bridge/.env — empty means auth disabled}
+      # Optional second secret for /admin/reload and /log/tail (X-Admin-Token).
+      - CLAUDE_BRIDGE_ADMIN_TOKEN=${CLAUDE_BRIDGE_ADMIN_TOKEN:-}
       # Per-app model + rate-limit policy (mounted below).
       - CLAUDE_BRIDGE_ALLOWLIST_FILE=/config/bridge-allowlist.json
-      # Optional Qdrant for /rag/* (key sent as `api-key`). The default points at
-      # a Qdrant published on the HOST's port 6333. To use the bundled one, start
-      # with `--profile qdrant` and set QDRANT_URL=http://qdrant:6333.
+      # Qdrant for /rag/* (key sent as `api-key`). Without a .env value this points
+      # at a Qdrant published on the HOST's port 6333; .env.example selects the
+      # bundled one (COMPOSE_PROFILES=qdrant, QDRANT_URL=http://qdrant:6333).
       - QDRANT_URL=${QDRANT_URL:-http://host.docker.internal:6333}
       - QDRANT_API_KEY=${QDRANT_API_KEY:-}
       # Optional Ollama: embeddings (EMBED_PROVIDER=ollama) and the quota

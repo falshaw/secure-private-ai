@@ -33,3 +33,15 @@ single source of truth: fix it here, re-copy it, then typecheck each app. A
 security fix (algorithm pin, bcrypt cost) then reaches every app in one step.
 
 Peer dependencies: `jose`, `bcryptjs`.
+
+## Build and test
+
+```bash
+npm install      # also builds dist/auth-core.js + .d.ts (the package entry point)
+npm run typecheck
+npm test         # builds, then runs test/*.test.mjs with node --test
+```
+
+The tests cover the bcrypt cost and verification, the secret-length check,
+sign/verify with claims and `jti`, rejection of another key, an expired token
+and a tampered payload, and that an HS512 token is refused (algorithm pin).

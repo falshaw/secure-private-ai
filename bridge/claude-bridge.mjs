@@ -110,6 +110,20 @@ const EMBED_MODEL_EFFECTIVE =
 
 // Optional features
 const BRIDGE_TOKEN = process.env.CLAUDE_BRIDGE_TOKEN || null; // shared secret; empty/unset => disabled (|| not ?? so "" isn't a 0-length enforced token)
+// Optional second secret for the routes that see every app (/admin/reload,
+// /log/tail). Unset: the shared token opens them, as before.
+const ADMIN_TOKEN = process.env.CLAUDE_BRIDGE_ADMIN_TOKEN || null;
+const MIN_TOKEN_LENGTH = 24;
+
+/** Why a configured token must not be used, or null. */
+function weakTokenReason(token) {
+  if (token === null) return null; // unset = auth disabled, warned about at startup
+  if (/change.?me|replace|placeholder|your.?token|example|^secret$|^password$/i.test(token)) {
+    return "is a placeholder value";
+  }
+  if (token.length < MIN_TOKEN_LENGTH) return `is shorter than ${MIN_TOKEN_LENGTH} characters`;
+  return null;
+}
 const RAG_ENV = (process.env.RAG_ENV ?? "").toLowerCase(); // "" = no prefix
 const ALLOWLIST_FILE =
   process.env.CLAUDE_BRIDGE_ALLOWLIST_FILE ??
@@ -900,6 +914,9 @@ async function callOllamaFallback({ prompt, system }) {
         model: OLLAMA_FALLBACK_MODEL,
         messages,
         stream: false,
+        // Thinking models (gemma4, qwen3, ...) otherwise reason before answering
+        // and take several times longer; models without thinking ignore it.
+        think: false,
       }),
       signal: AbortSignal.timeout(SPAWN_TIMEOUT_MS),
     });
@@ -1032,7 +1049,9 @@ async function qdrantRequest(method, path, body) {
   });
   const text = await res.text();
   if (!res.ok) {
-    throw new Error(`qdrant ${method} ${path} HTTP ${res.status}: ${text.slice(0, 300)}`);
+    const err = new Error(`qdrant ${method} ${path} HTTP ${res.status}: ${text.slice(0, 300)}`);
+    err.status = res.status;
+    throw err;
   }
   try { return JSON.parse(text); } catch { return { raw: text }; }
 }
@@ -1232,7 +1251,24 @@ function getRequestContext(req) {
     requestId: incoming || randomUUID(),
     appName: (hdr("x-app-name") || "unknown").toString().slice(0, 64),
     token: hdr("x-bridge-token") ?? bearer,
+    adminToken: hdr("x-admin-token"),
   };
+}
+
+/** Constant-time comparison of a presented token with the expected one. */
+function tokenMatches(presented, expected) {
+  if (typeof presented !== "string") return false;
+  if (presented.length !== expected.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < presented.length; i++) {
+    mismatch |= presented.charCodeAt(i) ^ expected.charCodeAt(i);
+  }
+  return mismatch === 0;
+}
+
+/** With CLAUDE_BRIDGE_ADMIN_TOKEN set, the cross-app routes also need X-Admin-Token. */
+function checkAdmin(ctx) {
+  return ADMIN_TOKEN === null || tokenMatches(ctx.adminToken, ADMIN_TOKEN);
 }
 
 function checkAuth(ctx) {
@@ -1744,8 +1780,17 @@ async function handleRagSearch(req, res, ctx) {
     );
   } catch (err) {
     metrics.ragSearchesFailed += 1;
-    return send(res, 500, { ok: false, error: err.message }, ctx.requestId);
+    return sendRagError(res, ctx, err, collection);
   }
+}
+
+// A collection that does not exist is the caller's mistake (404), not a
+// bridge failure (500), and Qdrant's raw error body stays out of the reply.
+function sendRagError(res, ctx, err, collection) {
+  if (err?.status === 404) {
+    return send(res, 404, { ok: false, error: `collection "${collection}" not found` }, ctx.requestId);
+  }
+  return send(res, 500, { ok: false, error: err.message }, ctx.requestId);
 }
 
 async function handleRagDelete(req, res, ctx, collName, id) {
@@ -1762,7 +1807,7 @@ async function handleRagDelete(req, res, ctx, collName, id) {
     await qdrantDeletePoint(collection, qdrantId);
     return send(res, 200, { ok: true, id, collection }, ctx.requestId);
   } catch (err) {
-    return send(res, 500, { ok: false, error: err.message }, ctx.requestId);
+    return sendRagError(res, ctx, err, collection);
   }
 }
 
@@ -1785,7 +1830,7 @@ async function handleRagDeleteCollection(req, res, ctx, collName) {
     });
     return send(res, 200, { ok: true, collection, deleted: true }, ctx.requestId);
   } catch (err) {
-    return send(res, 500, { ok: false, error: err.message }, ctx.requestId);
+    return sendRagError(res, ctx, err, collection);
   }
 }
 
@@ -2210,6 +2255,10 @@ const server = createServer(async (req, res) => {
       status = res.statusCode;
       return;
     }
+    if ((path === "/admin/reload" || path === "/log/tail") && !checkAdmin(ctx)) {
+      status = 403;
+      return send(res, 403, { ok: false, error: "admin route — set X-Admin-Token" }, ctx.requestId);
+    }
     if (req.method === "POST" && path === "/admin/reload") {
       await handleReload(req, res, ctx);
       status = res.statusCode;
@@ -2254,12 +2303,24 @@ const server = createServer(async (req, res) => {
   }
 });
 
+// A placeholder or short secret is worse than none: it looks protected.
+for (const [name, value] of [["CLAUDE_BRIDGE_TOKEN", BRIDGE_TOKEN], ["CLAUDE_BRIDGE_ADMIN_TOKEN", ADMIN_TOKEN]]) {
+  const reason = weakTokenReason(value);
+  if (reason) {
+    log("error", "auth.weak_token", {
+      note: `${name} ${reason}. Set a random value, e.g. node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`,
+    });
+    process.exit(1);
+  }
+}
+
 server.listen(PORT, HOST, () => {
   log("info", "claude-bridge listening", {
     host: HOST,
     port: PORT,
     bin: CLAUDE_BIN,
     authRequired: BRIDGE_TOKEN !== null,
+    adminTokenRequired: ADMIN_TOKEN !== null,
     allowlistLoaded: Object.keys(allowlist).length > 0,
     ragEnv: RAG_ENV || null,
     cacheMax: CACHE_MAX_ENTRIES,

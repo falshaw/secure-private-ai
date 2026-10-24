@@ -5,10 +5,30 @@
   "license": "MIT",
   "author": "Nick Falshaw",
   "type": "module",
-  "main": "auth-core.ts",
-  "types": "auth-core.ts",
+  "main": "dist/auth-core.js",
+  "types": "dist/auth-core.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/auth-core.d.ts",
+      "default": "./dist/auth-core.js"
+    },
+    "./auth-core.ts": "./auth-core.ts"
+  },
+  "files": ["dist", "auth-core.ts"],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "tsc && node --test \"test/*.test.mjs\"",
+    "prepare": "tsc"
+  },
   "peerDependencies": {
     "bcryptjs": "^3.0.0",
     "jose": ">=5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "bcryptjs": "^3.0.3",
+    "jose": "^6.1.0",
+    "typescript": "^5.6.0"
   }
 }

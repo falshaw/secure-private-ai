@@ -64,7 +64,8 @@ try {
   process.exit(2);
 }
 const installed = tags.models.map((m) => m.name);
-model ??= process.env.LOCAL_LLM_MODEL ?? PREFERRED.find((m) => installed.includes(m));
+// `||`, not `??`: an empty LOCAL_LLM_MODEL= (as in env templates) means "not set".
+model ??= process.env.LOCAL_LLM_MODEL || PREFERRED.find((m) => installed.includes(m));
 if (model && !model.includes(':')) model += ':latest'; // Ollama lists untagged pulls as name:latest
 if (!model || !installed.includes(model)) {
   console.error(`Model ${model ?? PREFERRED.join(' / ')} not pulled. Installed: ${installed.join(', ')}`);

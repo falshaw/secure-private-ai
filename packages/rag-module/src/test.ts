@@ -96,13 +96,12 @@ async function main() {
     );
   }
 
-  // Verify the GDPR erasure doc is top result
+  // Verify the GDPR erasure doc is top result: a wrong one means retrieval is broken
   if (results[0]?.id === "gdpr-2") {
     console.log("   OK — correct top result (gdpr-2: right to erasure)");
   } else {
-    console.log(
-      `   WARN — expected gdpr-2 as top result, got ${results[0]?.id}`,
-    );
+    console.error(`   FAIL — expected gdpr-2 as top result, got ${results[0]?.id}`);
+    process.exit(1);
   }
 
   // 5. Test context builder
@@ -115,10 +114,18 @@ async function main() {
       .map((l) => `   ${l}`)
       .join("\n"),
   );
+  if (!context.startsWith("[1] (networking.md)")) {
+    console.error("   FAIL — expected the RFC 1918 passage (networking.md) first");
+    process.exit(1);
+  }
 
   // 6. Test count
   const total = await rag.count();
   console.log(`\n6. Total documents in table: ${total}`);
+  if (total !== 5) {
+    console.error(`   FAIL — expected 5 documents, found ${total}`);
+    process.exit(1);
+  }
 
   console.log("\n=== ALL TESTS PASSED ===");
 }
