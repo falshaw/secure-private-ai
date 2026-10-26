@@ -1,0 +1,2 @@
+# Test fixture, not a credential: the JWT secret used only by the auth-core unit test
+216f43059c5b5ee8efa7e696f68cfd797c15ec3d:packages/auth/test/auth-core.test.mjs:generic-api-key:14
